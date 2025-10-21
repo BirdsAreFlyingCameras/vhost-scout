@@ -62,7 +62,7 @@ func AddRowToTable(DatabaseInterface *sql.DB, TableName string, TableRow TableRo
 		QuoteString(TableRow.BaselineRequestBodyMD5),
 		QuoteString(TableRow.SpoofedRequestBodyMD5),
 	)
-	fmt.Println(AddRowQuery) // DEBUG
+	//fmt.Println(AddRowQuery) // DEBUG
 	_, err := DatabaseInterface.Exec(AddRowQuery)
 	if err != nil {
 		return errors.New("An error occurred while adding row using query: " + AddRowQuery + "\n" + err.Error())

@@ -8,7 +8,6 @@ import (
 	"io"
 	"math/rand"
 	"net/http"
-	"time"
 	"vhost-scout/include/file_utils"
 	"vhost-scout/include/request_utils"
 	"vhost-scout/include/sqlite_utils"
@@ -21,14 +20,18 @@ type t_vhost struct {
 	spoofed_request_body_md5  string
 }
 
-func random5LetterString() string {
-	const letters = "abcdefghijklmnopqrstuvwxyz"
-	rand.Seed(time.Now().UnixNano())
-	b := make([]byte, 5)
-	for i := range b {
-		b[i] = letters[rand.Intn(len(letters))]
+func gen_random_string(string_length int) string {
+
+	if string_length <= 0 {
+		string_length = 7
 	}
-	return string(b)
+
+	const letters = "abcdefghijklmnopqrstuvwxyz"
+	random_string := ""
+	for range string_length {
+		random_string += string(letters[rand.Intn(len(letters))])
+	}
+	return random_string
 }
 
 func gen_response_body_md5(response_body io.ReadCloser) (string, error) {
@@ -75,7 +78,7 @@ func process_target(target string, vhosts_list []string) ([]t_vhost, error) {
 	})
 
 	// ----| Make initial request to target with random host header to establish baseline response to requests for non-existent vhosts
-	baseline_resp_md5_hash, _, err := send_request_with_spoofed_host_header(target, random5LetterString()+".com")
+	baseline_resp_md5_hash, _, err := send_request_with_spoofed_host_header(target, gen_random_string(rand.Intn(10))+".com") // Send baseline request with a spoofed Host header set to a random 1 to 10 letter string followed by .com
 	if err != nil {
 		return nil, errors.New("Error occurred while attempting to make baseline request to: " + target + "with Host header: " + target + "\n" + err.Error())
 	}
@@ -89,12 +92,12 @@ func process_target(target string, vhosts_list []string) ([]t_vhost, error) {
 			return nil, errors.New("Error occurred while attempting to send spoofed request to: " + target + "with Host header: " + target + "\n" + spoofed_req_err.Error())
 		}
 
-		fmt.Printf("baseline request hash: %s\n", baseline_resp_md5_hash) // DEBUG
-		fmt.Printf("spoofed request hash: %s\n", spoofed_req_md5_hash)    // DEBUG
+		// fmt.Printf("baseline request hash: %s\n", baseline_resp_md5_hash) // DEBUG
+		// fmt.Printf("spoofed request hash: %s\n", spoofed_req_md5_hash)    // DEBUG
 
-		//
 		if spoofed_req_md5_hash != baseline_resp_md5_hash {
-			fmt.Printf(">> Possible vhost: %s\n enumberated on target: %s\n", vhost, target)
+
+			fmt.Printf(">> Possible VHost: %s\n   Enumerated On Target: %s\n\n", vhost, target)
 
 			vhost_information := t_vhost{
 				target:                    target,
@@ -102,7 +105,7 @@ func process_target(target string, vhosts_list []string) ([]t_vhost, error) {
 				baseline_request_body_md5: baseline_resp_md5_hash,
 				spoofed_request_body_md5:  spoofed_req_md5_hash,
 			}
-			fmt.Println(vhost_information) // DEBUG
+			//fmt.Println(vhost_information) // DEBUG
 			enumerated_vhosts = append(enumerated_vhosts, vhost_information)
 		}
 	}
@@ -112,7 +115,7 @@ func process_target(target string, vhosts_list []string) ([]t_vhost, error) {
 func add_enumerated_vhosts_to_db(enumerated_vhosts []t_vhost) {
 
 	if len(enumerated_vhosts) == 0 {
-		fmt.Println("No enumerated vhosts found")
+		fmt.Println("No vhosts were enumerated")
 		return
 	}
 
@@ -152,7 +155,7 @@ func run(targets_lists_path string, vhosts_lists_path string) {
 	// ----| Load vhosts from file
 	vhosts_list, err := file_utils.Read_lines(vhosts_lists_path)
 	if err != nil {
-		panic(fmt.Errorf("An error occured while attempting to read : %w", err))
+		panic(fmt.Errorf("an error occured while attempting to read: %w", err))
 	}
 
 	for _, target := range targets_list {
@@ -172,7 +175,7 @@ func main() {
 
 	/*
 		if os.Args[1] == "help" || os.Args[1] == "-h" || os.Args[1] == "--help" {
-			fmt.Println("=====| vhost enum |=====\n")
+			fmt.Println("=====| vhost-scout |=====\n")
 			fmt.Printf("Takes a two files one containg a list targets the other containg a list of vhosts.\n\n")
 			fmt.Printf("Usage: %s <targets.txt> <vhosts.txt> \n", os.Args[0])
 			os.Exit(0)
