@@ -14,18 +14,21 @@ import (
 )
 
 type t_vhost struct {
-	target                    string
-	vhost                     string
-	baseline_request_body_md5 string
-	spoofed_request_body_md5  string
+	target                      string
+	vhost                       string
+	baseline_response_body_md5  string
+	spoofed_response_body_md5   string
+	spoofed_request_status_code int
 }
 
 func gen_random_string(string_length int) string {
 
+	// ----| Ensure string length is not 0
 	if string_length <= 0 {
 		string_length = 7
 	}
 
+	// ----| Generate random string
 	const letters = "abcdefghijklmnopqrstuvwxyz"
 	random_string := ""
 	for range string_length {
@@ -57,17 +60,17 @@ func send_request_with_spoofed_host_header(target string, vhost string) (string,
 	spoofed_req.Host = vhost // Spoof host header
 
 	// ----| Make request with spoofed Host header
-	spoofed_resp, err := http.DefaultClient.Do(spoofed_req)
+	resp_to_spoofed_req, err := http.DefaultClient.Do(spoofed_req)
 	if err != nil {
 		return "", http.Response{}, errors.New("An error occurred while making a spoofed request to: " + target + "with Host header: " + vhost + "\n" + err.Error())
 	}
 
 	// ----| Generate md5 hash from baseline_resp body
-	spoofed_resp_md5_hash, err := gen_response_body_md5(spoofed_resp.Body)
+	resp_to_spoofed_req_md5_hash, err := gen_response_body_md5(resp_to_spoofed_req.Body)
 	if err != nil {
 		return "", http.Response{}, errors.New("Error occurred while attempting to generate md5 hash of the baseline response body while processing target: " + target)
 	}
-	return spoofed_resp_md5_hash, *spoofed_resp, nil
+	return resp_to_spoofed_req_md5_hash, *resp_to_spoofed_req, nil
 }
 
 func process_target(target string, vhosts_list []string) ([]t_vhost, error) {
@@ -77,7 +80,7 @@ func process_target(target string, vhosts_list []string) ([]t_vhost, error) {
 		vhosts_list[i], vhosts_list[j] = vhosts_list[j], vhosts_list[i]
 	})
 
-	// ----| Make initial request to target with random host header to establish baseline response to requests for non-existent vhosts
+	// ----| Make initial request to target with random host header to establish baseline response to requests to non-existent vhosts
 	baseline_resp_md5_hash, _, err := send_request_with_spoofed_host_header(target, gen_random_string(rand.Intn(10))+".com") // Send baseline request with a spoofed Host header set to a random 1 to 10 letter string followed by .com
 	if err != nil {
 		return nil, errors.New("Error occurred while attempting to make baseline request to: " + target + "with Host header: " + target + "\n" + err.Error())
@@ -87,7 +90,7 @@ func process_target(target string, vhosts_list []string) ([]t_vhost, error) {
 	for _, vhost := range vhosts_list {
 
 		// ----| Send request with spoofed Host header
-		spoofed_req_md5_hash, _, spoofed_req_err := send_request_with_spoofed_host_header(target, vhost)
+		spoofed_req_md5_hash, spoofed_request_interface, spoofed_req_err := send_request_with_spoofed_host_header(target, vhost)
 		if spoofed_req_err != nil {
 			return nil, errors.New("Error occurred while attempting to send spoofed request to: " + target + "with Host header: " + target + "\n" + spoofed_req_err.Error())
 		}
@@ -97,13 +100,14 @@ func process_target(target string, vhosts_list []string) ([]t_vhost, error) {
 
 		if spoofed_req_md5_hash != baseline_resp_md5_hash {
 
-			fmt.Printf(">> Possible VHost: %s\n   Enumerated On Target: %s\n\n", vhost, target)
+			fmt.Printf(">> Possible VHost: %s\n   Enumerated On Target: %s\n   With Status Code: %d\n\n", vhost, target, spoofed_request_interface.StatusCode)
 
 			vhost_information := t_vhost{
-				target:                    target,
-				vhost:                     vhost,
-				baseline_request_body_md5: baseline_resp_md5_hash,
-				spoofed_request_body_md5:  spoofed_req_md5_hash,
+				target:                      target,
+				vhost:                       vhost,
+				baseline_response_body_md5:  baseline_resp_md5_hash,
+				spoofed_response_body_md5:   spoofed_req_md5_hash,
+				spoofed_request_status_code: spoofed_request_interface.StatusCode,
 			}
 			//fmt.Println(vhost_information) // DEBUG
 			enumerated_vhosts = append(enumerated_vhosts, vhost_information)
@@ -114,13 +118,14 @@ func process_target(target string, vhosts_list []string) ([]t_vhost, error) {
 
 func add_enumerated_vhosts_to_db(enumerated_vhosts []t_vhost) {
 
+	// ----| Ensure there are vhost to add to db
 	if len(enumerated_vhosts) == 0 {
 		fmt.Println("No vhosts were enumerated")
 		return
 	}
 
-	// ----| Init database interface
-	database_interface, err := sqlite_utils.InitializeDatabaseInterface("db.sqlite")
+	// ----| Open database interface
+	database_interface, err := sqlite_utils.Open_database_interface("db.sqlite")
 	if err != nil {
 		panic(fmt.Errorf("error initializing database interface: %w", err))
 	}
@@ -131,17 +136,20 @@ func add_enumerated_vhosts_to_db(enumerated_vhosts []t_vhost) {
 		db_row := sqlite_utils.TableRow{
 			vhost_information.target,
 			vhost_information.vhost,
-			vhost_information.baseline_request_body_md5,
-			vhost_information.spoofed_request_body_md5,
+			vhost_information.baseline_response_body_md5,
+			vhost_information.spoofed_response_body_md5,
+			vhost_information.spoofed_request_status_code,
 		}
 
-		// ----| Insert row
+		// ----| Insert row into table
 		err = sqlite_utils.AddRowToTable(database_interface, "enumerated_vhosts", db_row)
 		if err != nil {
 			panic(fmt.Errorf("error adding enumerated vhost table: %w", err))
 		}
 	}
-	sqlite_utils.CloseDatabaseInterface(database_interface)
+
+	// ----| Close database interface
+	sqlite_utils.Close_database_interface(database_interface)
 }
 
 func run(targets_lists_path string, vhosts_lists_path string) {
@@ -176,7 +184,7 @@ func main() {
 	/*
 		if os.Args[1] == "help" || os.Args[1] == "-h" || os.Args[1] == "--help" {
 			fmt.Println("=====| vhost-scout |=====\n")
-			fmt.Printf("Takes a two files one containg a list targets the other containg a list of vhosts.\n\n")
+			fmt.Printf("Takes a two files one containing a of list targets (host to scan for vhosts on) the other containing a list of vhosts to scan for.\n\n")
 			fmt.Printf("Usage: %s <targets.txt> <vhosts.txt> \n", os.Args[0])
 			os.Exit(0)
 		}

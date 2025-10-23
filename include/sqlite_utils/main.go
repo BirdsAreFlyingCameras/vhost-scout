@@ -9,26 +9,12 @@ import (
 	"strings"
 )
 
-type TableColumn struct {
-	Type string
-	Name string
-}
-
-type TableRowValue struct {
-	Value string
-	Type  string
-}
-
-type DatabaseTableStruct struct {
-	Name    string
-	Columns []string
-}
-
 type TableRow struct {
-	Target                 string
-	Vhost                  string
-	BaselineRequestBodyMD5 string
-	SpoofedRequestBodyMD5  string
+	Target                   string
+	Vhost                    string
+	BaselineRequestBodyMD5   string
+	SpoofedRequestBodyMD5    string
+	SpoofedRequestStatusCode int
 }
 
 func QuoteString(s string) string {
@@ -36,7 +22,7 @@ func QuoteString(s string) string {
 	return "'" + strings.ReplaceAll(s, "'", "''") + "'"
 }
 
-func InitializeDatabaseInterface(DatabaseDirectory string) (*sql.DB, error) {
+func Open_database_interface(DatabaseDirectory string) (*sql.DB, error) {
 	DatabaseInterface, DatabaseInterfaceError := sql.Open("sqlite", DatabaseDirectory)
 	return DatabaseInterface, DatabaseInterfaceError
 }
@@ -47,30 +33,35 @@ func AddRowToTable(DatabaseInterface *sql.DB, TableName string, TableRow TableRo
 	CREATE TABLE IF NOT EXISTS enumerated_vhosts(
 	    target TEXT NOT NULL,
 		vhost TEXT NOT NULL,
-		baseline_request_body_md5 TEXT NOT NULL,
-		spoofed_request_body_md5 TEXT NOT NULL,
+		baseline_response_body_md5 TEXT NOT NULL,
+		spoofed_response_body_md5 TEXT NOT NULL,
+		spoofed_request_status_code INT NOT NULL
 	);`)
-	DatabaseInterface.Exec(TableExistAndCreateQuery)
+	_, db_table_err := DatabaseInterface.Exec(TableExistAndCreateQuery)
+	if db_table_err != nil {
+		return errors.New("Error creating database table")
+	}
 
 	AddRowQuery := fmt.Sprintf(
 		"INSERT INTO %s("+
-			"target, vhost, baseline_request_body_md5, spoofed_request_body_md5"+
-			") VALUES (%s, %s, %s, %s);",
+			"target, vhost, baseline_response_body_md5, spoofed_response_body_md5, spoofed_request_status_code"+
+			") VALUES (%s, %s, %s, %s, %d);",
 		TableName,
 		QuoteString(TableRow.Target),
 		QuoteString(TableRow.Vhost),
 		QuoteString(TableRow.BaselineRequestBodyMD5),
 		QuoteString(TableRow.SpoofedRequestBodyMD5),
+		TableRow.SpoofedRequestStatusCode,
 	)
 	//fmt.Println(AddRowQuery) // DEBUG
-	_, err := DatabaseInterface.Exec(AddRowQuery)
-	if err != nil {
-		return errors.New("An error occurred while adding row using query: " + AddRowQuery + "\n" + err.Error())
+	_, db_row_err := DatabaseInterface.Exec(AddRowQuery)
+	if db_row_err != nil {
+		return errors.New("An error occurred while adding row using query: " + AddRowQuery + "\n" + db_row_err.Error())
 	}
 	return nil
 }
 
-func CloseDatabaseInterface(DatabaseInterface *sql.DB) {
+func Close_database_interface(DatabaseInterface *sql.DB) {
 	Error := DatabaseInterface.Close()
 	if Error != nil {
 		log.Panic(Error)
