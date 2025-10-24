@@ -13,6 +13,7 @@ import (
 	"strings"
 	"vhost-scout/include/banner_utils"
 	"vhost-scout/include/file_utils"
+	"vhost-scout/include/input_utils"
 	"vhost-scout/include/request_utils"
 	"vhost-scout/include/sqlite_utils"
 )
@@ -167,26 +168,38 @@ func print_banner(targets []string, vhosts_list []string) {
 	fmt.Println("▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁")
 
 	fmt.Println("\n")
+
 	if len(targets) > 10 {
 		fmt.Println("Targets: " + strings.Join(targets[:10], ", ") + ", " + strconv.Itoa(len(targets)-10) + " more targets")
 	} else {
 		fmt.Println("Targets: " + strings.Join(targets, ", "))
 	}
+
 	print("\n")
+
 	if len(vhosts_list) > 10 {
 		fmt.Println("VHosts: " + strings.Join(vhosts_list[:10], ", ") + ", " + strconv.Itoa(len(vhosts_list)-10) + " more vhosts")
 	} else {
 		fmt.Println("VHosts: " + strings.Join(vhosts_list, ", "))
 	}
+
 	print("\n")
 }
 
-func run(targets_lists_path string, vhosts_lists_path string) {
+func run(targets_from_file_or_target_url string, vhosts_lists_path string) {
 
-	// ----| Load targets from file
-	targets_list, err := file_utils.Read_lines(targets_lists_path)
-	if err != nil {
-		panic(fmt.Errorf("error reading targets list: %w", err))
+	var targets_list []string
+	if input_utils.IsDomainOrURL(targets_from_file_or_target_url) == false {
+		// Means targets_list_path is a file
+		// ----| Load targets from file
+		targets_from_file, err := file_utils.Read_lines(targets_from_file_or_target_url)
+		if err != nil {
+			panic(fmt.Errorf("error reading targets list: %w", err))
+		}
+		targets_list = targets_from_file
+	} else {
+		// Means targets_list_path is a url
+		targets_list = append(targets_list, targets_from_file_or_target_url)
 	}
 
 	// ----| Load vhosts from file
@@ -214,7 +227,7 @@ func run(targets_lists_path string, vhosts_lists_path string) {
 			fmt.Printf("  > Adding enumerated vhosts to database\n\n")
 			add_enumerated_vhosts_to_db(enumerated_vhosts)
 		} else {
-			fmt.Println("  > No vhosts were enumerated\n")
+			fmt.Println("  > No vhosts were enumerated")
 		}
 		fmt.Printf("  > Finished VHost Enumeration On Target: %s\n\n", target)
 	}
@@ -223,19 +236,19 @@ func run(targets_lists_path string, vhosts_lists_path string) {
 func main() {
 
 	/*
-		targets_lists_path := "example-targets.txt"
+		targets_from_file_or_target_url := "example-targets.txt"
 		vhosts_lists_path := "example-vhosts.txt"
-		run(targets_lists_path, vhosts_lists_path)
+		run(targets_from_file_or_target_url, vhosts_lists_path)
 	*/
 
 	if len(os.Args) != 3 || os.Args[1] == "help" || os.Args[1] == "-h" || os.Args[1] == "--help" {
 		fmt.Println("=====| vhost-scout |=====\n")
-		fmt.Printf("Takes a two files one containing a of list targets (host to scan for vhosts on) the other containing a list of vhosts to scan for.\n\n")
-		fmt.Printf("Usage: %s <targets.txt> <vhosts.txt> \n", os.Args[0])
+		fmt.Printf("Takes a two inputs the first is either files one containing a of list targets (host to scan for vhosts on) or a singuler target url the other input takes a list of vhosts to scan each host for.\n\n")
+		fmt.Printf("Usage: %s (<target.tld> || <targets.txt>) <vhosts.txt> \n", os.Args[0])
 		os.Exit(0)
 	}
 
-	targets_lists_path := os.Args[1]
+	targets_from_file_or_target_url := os.Args[1]
 	vhosts_lists_path := os.Args[2]
-	run(targets_lists_path, vhosts_lists_path)
+	run(targets_from_file_or_target_url, vhosts_lists_path)
 }
