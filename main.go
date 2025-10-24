@@ -8,6 +8,10 @@ import (
 	"io"
 	"math/rand"
 	"net/http"
+	"os"
+	"strconv"
+	"strings"
+	"vhost-scout/include/banner_utils"
 	"vhost-scout/include/file_utils"
 	"vhost-scout/include/request_utils"
 	"vhost-scout/include/sqlite_utils"
@@ -62,7 +66,7 @@ func send_request_with_spoofed_host_header(target string, vhost string) (string,
 	// ----| Make request with spoofed Host header
 	resp_to_spoofed_req, err := http.DefaultClient.Do(spoofed_req)
 	if err != nil {
-		return "", http.Response{}, errors.New("An error occurred while making a spoofed request to: " + target + "with Host header: " + vhost + "\n" + err.Error())
+		return "", http.Response{}, errors.New("An error occurred while making a spoofed request to: " + target + " with Host header: " + vhost + "\n" + err.Error())
 	}
 
 	// ----| Generate md5 hash from baseline_resp body
@@ -100,7 +104,7 @@ func process_target(target string, vhosts_list []string) ([]t_vhost, error) {
 
 		if spoofed_req_md5_hash != baseline_resp_md5_hash {
 
-			fmt.Printf(">> Possible VHost: %s\n   Enumerated On Target: %s\n   With Status Code: %d\n\n", vhost, target, spoofed_request_interface.StatusCode)
+			fmt.Printf("  > %s (Status Code: %d)\n\n", vhost, spoofed_request_interface.StatusCode)
 
 			vhost_information := t_vhost{
 				target:                      target,
@@ -120,7 +124,7 @@ func add_enumerated_vhosts_to_db(enumerated_vhosts []t_vhost) {
 
 	// ----| Ensure there are vhost to add to db
 	if len(enumerated_vhosts) == 0 {
-		fmt.Println("No vhosts were enumerated")
+		fmt.Println("  > No vhosts were enumerated\n")
 		return
 	}
 
@@ -152,6 +156,27 @@ func add_enumerated_vhosts_to_db(enumerated_vhosts []t_vhost) {
 	sqlite_utils.Close_database_interface(database_interface)
 }
 
+func print_banner(targets []string, vhosts_list []string) {
+
+	fmt.Println(banner_utils.Guy_pointing)
+
+	fmt.Println("▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁")
+
+	fmt.Println("\n")
+	if len(targets) > 10 {
+		fmt.Println("Targets: " + strings.Join(targets[:10], ", ") + ", " + strconv.Itoa(len(targets)-10) + " more targets")
+	} else {
+		fmt.Println("Targets: " + strings.Join(targets, ", "))
+	}
+	print("\n")
+	if len(vhosts_list) > 10 {
+		fmt.Println("VHosts: " + strings.Join(vhosts_list[:10], ", ") + ", " + strconv.Itoa(len(vhosts_list)-10) + " more vhosts")
+	} else {
+		fmt.Println("VHosts: " + strings.Join(vhosts_list, ", "))
+	}
+	print("\n")
+}
+
 func run(targets_lists_path string, vhosts_lists_path string) {
 
 	// ----| Load targets from file
@@ -166,31 +191,47 @@ func run(targets_lists_path string, vhosts_lists_path string) {
 		panic(fmt.Errorf("an error occured while attempting to read: %w", err))
 	}
 
+	fmt.Println("▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁")
+
+	// ----| Print banner
+	print_banner(targets_list, vhosts_list)
+
+	fmt.Println("▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁")
+
 	for _, target := range targets_list {
+
+		fmt.Printf("\n\n> Starting VHost Enumeration On Target: %s\n\n", target)
 		enumerated_vhosts, err := process_target(target, vhosts_list)
 		if err != nil {
 			panic(fmt.Errorf("error processing target: %w", err))
 		}
-		add_enumerated_vhosts_to_db(enumerated_vhosts)
+
+		if len(enumerated_vhosts) != 0 {
+			fmt.Printf("  > Adding enumerated vhosts to database\n\n")
+			add_enumerated_vhosts_to_db(enumerated_vhosts)
+		} else {
+			fmt.Println("  > No vhosts were enumerated\n")
+		}
+		fmt.Printf("  > Finished VHost Enumeration On Target: %s\n\n", target)
 	}
 }
 
 func main() {
 
-	targets_lists_path := "example-targets.txt"
-	vhosts_lists_path := "example-vhosts.txt"
-	run(targets_lists_path, vhosts_lists_path)
-
 	/*
-		if os.Args[1] == "help" || os.Args[1] == "-h" || os.Args[1] == "--help" {
-			fmt.Println("=====| vhost-scout |=====\n")
-			fmt.Printf("Takes a two files one containing a of list targets (host to scan for vhosts on) the other containing a list of vhosts to scan for.\n\n")
-			fmt.Printf("Usage: %s <targets.txt> <vhosts.txt> \n", os.Args[0])
-			os.Exit(0)
-		}
-
-		targets_lists_path := os.Args[1]
-		vhosts_lists_path := os.Args[2]
+		targets_lists_path := "example-targets.txt"
+		vhosts_lists_path := "example-vhosts.txt"
 		run(targets_lists_path, vhosts_lists_path)
 	*/
+
+	if len(os.Args) != 3 || os.Args[1] == "help" || os.Args[1] == "-h" || os.Args[1] == "--help" {
+		fmt.Println("=====| vhost-scout |=====\n")
+		fmt.Printf("Takes a two files one containing a of list targets (host to scan for vhosts on) the other containing a list of vhosts to scan for.\n\n")
+		fmt.Printf("Usage: %s <targets.txt> <vhosts.txt> \n", os.Args[0])
+		os.Exit(0)
+	}
+
+	targets_lists_path := os.Args[1]
+	vhosts_lists_path := os.Args[2]
+	run(targets_lists_path, vhosts_lists_path)
 }
