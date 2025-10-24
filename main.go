@@ -158,7 +158,11 @@ func add_enumerated_vhosts_to_db(enumerated_vhosts []t_vhost) {
 
 func print_banner(targets []string, vhosts_list []string) {
 
-	fmt.Println(banner_utils.Guy_pointing)
+	var banner_art []string
+	banner_art = append(banner_art, banner_utils.Guy_pointing)
+	banner_art = append(banner_art, banner_utils.Patric)
+
+	fmt.Println(banner_art[rand.Intn(len(banner_art))])
 
 	fmt.Println("▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁")
 
