@@ -11,12 +11,18 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 	"vhost-scout/include/banner_utils"
 	"vhost-scout/include/file_utils"
 	"vhost-scout/include/input_utils"
 	"vhost-scout/include/request_utils"
 	"vhost-scout/include/sqlite_utils"
 )
+
+type t_target_that_encountered_error struct {
+	target string
+	error  error
+}
 
 type t_vhost struct {
 	target                      string
@@ -117,22 +123,25 @@ func process_target(target string, vhosts_list []string) ([]t_vhost, error) {
 			//fmt.Println(vhost_information) // DEBUG
 			enumerated_vhosts = append(enumerated_vhosts, vhost_information)
 		}
+
+		n := rand.Intn(3) // n will be between 0 and 3
+		time.Sleep(time.Duration(n) * time.Second)
 	}
 	return enumerated_vhosts, nil
 }
 
-func add_enumerated_vhosts_to_db(enumerated_vhosts []t_vhost) {
+func add_enumerated_vhosts_to_db(enumerated_vhosts []t_vhost) error {
 
 	// ----| Ensure there are vhost to add to db
 	if len(enumerated_vhosts) == 0 {
 		fmt.Println("  > No vhosts were enumerated\n")
-		return
+		return nil
 	}
 
 	// ----| Open database interface
 	database_interface, err := sqlite_utils.Open_database_interface("db.sqlite")
 	if err != nil {
-		panic(fmt.Errorf("error initializing database interface: %w", err))
+		return errors.New("error initializing database interface:" + err.Error())
 	}
 
 	for _, vhost_information := range enumerated_vhosts {
@@ -149,12 +158,13 @@ func add_enumerated_vhosts_to_db(enumerated_vhosts []t_vhost) {
 		// ----| Insert row into table
 		err = sqlite_utils.AddRowToTable(database_interface, "enumerated_vhosts", db_row)
 		if err != nil {
-			panic(fmt.Errorf("error adding enumerated vhost table: %w", err))
+			return errors.New("error adding enumerated vhost table: " + err.Error())
 		}
 	}
 
 	// ----| Close database interface
 	sqlite_utils.Close_database_interface(database_interface)
+	return nil
 }
 
 func print_banner(targets []string, vhosts_list []string) {
@@ -186,7 +196,7 @@ func print_banner(targets []string, vhosts_list []string) {
 	print("\n")
 }
 
-func run(targets_from_file_or_target_url string, vhosts_lists_path string) {
+func run(targets_from_file_or_target_url string, vhosts_lists_path string) error {
 
 	var targets_list []string
 	if input_utils.IsDomainOrURL(targets_from_file_or_target_url) == false {
@@ -205,7 +215,7 @@ func run(targets_from_file_or_target_url string, vhosts_lists_path string) {
 	// ----| Load vhosts from file
 	vhosts_list, err := file_utils.Read_lines(vhosts_lists_path)
 	if err != nil {
-		panic(fmt.Errorf("an error occured while attempting to read: %w", err))
+		return errors.New("an error occurred while attempting to read: " + err.Error())
 	}
 
 	fmt.Println("▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁")
@@ -215,22 +225,47 @@ func run(targets_from_file_or_target_url string, vhosts_lists_path string) {
 
 	fmt.Println("▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁")
 
+	var targets_that_errored []t_target_that_encountered_error
 	for _, target := range targets_list {
 
 		fmt.Printf("\n\n> Starting VHost Enumeration On Target: %s\n\n", target)
 		enumerated_vhosts, err := process_target(target, vhosts_list)
 		if err != nil {
-			panic(fmt.Errorf("error processing target: %w", err))
+			fmt.Printf("> error processing target: %w", err)
+			targets_that_errored = append(targets_that_errored, t_target_that_encountered_error{target, err})
+			continue
 		}
 
 		if len(enumerated_vhosts) != 0 {
 			fmt.Printf("  > Adding enumerated vhosts to database\n\n")
-			add_enumerated_vhosts_to_db(enumerated_vhosts)
+			err := add_enumerated_vhosts_to_db(enumerated_vhosts)
+			if err != nil {
+				_ = fmt.Errorf("> error while adding enumerated vhosts on target: %w to the db. Error: %e", targets_list)
+				targets_that_errored = append(targets_that_errored, t_target_that_encountered_error{target, err})
+				continue
+			}
+
 		} else {
 			fmt.Println("  > No vhosts were enumerated")
 		}
+
 		fmt.Printf("  > Finished VHost Enumeration On Target: %s\n\n", target)
+
+		n := rand.Intn(10) // n will be between 0 and 10
+		fmt.Printf("  > Sleeping %d seconds...\n", n)
+		time.Sleep(time.Duration(n) * time.Second)
 	}
+
+	if len(targets_that_errored) != 0 {
+		fmt.Println("▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁")
+		fmt.Println("> Targets that encountered an error during scanning")
+		for _, target_that_encountered_error := range targets_that_errored {
+			fmt.Println("  > " + target_that_encountered_error.target + " || Error: " + target_that_encountered_error.error.Error())
+		}
+	} else {
+		fmt.Println("> All targets were enumerated successfully")
+	}
+	return nil
 }
 
 func main() {
@@ -250,5 +285,9 @@ func main() {
 
 	targets_from_file_or_target_url := os.Args[1]
 	vhosts_lists_path := os.Args[2]
-	run(targets_from_file_or_target_url, vhosts_lists_path)
+	err := run(targets_from_file_or_target_url, vhosts_lists_path)
+	if err != nil {
+		panic("An error occurred while running the program" + err.Error())
+		return
+	}
 }
