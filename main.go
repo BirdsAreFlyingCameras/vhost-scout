@@ -94,7 +94,7 @@ func process_target(target string, vhosts_list []string) ([]t_vhost, error) {
 	// ----| Make initial request to target with random host header to establish baseline response to requests to non-existent vhosts
 	baseline_resp_md5_hash, _, err := send_request_with_spoofed_host_header(target, gen_random_string(rand.Intn(10))+".com") // Send baseline request with a spoofed Host header set to a random 1 to 10 letter string followed by .com
 	if err != nil {
-		return nil, errors.New("Error occurred while attempting to make baseline request to: " + target + "with Host header: " + target + "\n" + err.Error())
+		return nil, errors.New("Error occurred while attempting to make baseline request to: " + target + " with Host header: " + target + "\n" + err.Error())
 	}
 
 	var enumerated_vhosts []t_vhost
@@ -231,7 +231,7 @@ func run(targets_from_file_or_target_url string, vhosts_lists_path string) error
 		fmt.Printf("\n\n> Starting VHost Enumeration On Target: %s\n\n", target)
 		enumerated_vhosts, err := process_target(target, vhosts_list)
 		if err != nil {
-			fmt.Printf("> error processing target: %w", err)
+			fmt.Printf("> An error occured while processing target: %s || Error: %s", target, err.Error())
 			targets_that_errored = append(targets_that_errored, t_target_that_encountered_error{target, err})
 			continue
 		}
