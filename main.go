@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/fatih/color"
 	"io"
 	"math/rand"
 	"net/http"
@@ -111,7 +112,16 @@ func process_target(target string, vhosts_list []string) ([]t_vhost, error) {
 
 		if spoofed_req_md5_hash != baseline_resp_md5_hash {
 
-			fmt.Printf("  > %s (Status Code: %d)\n\n", vhost, spoofed_request_interface.StatusCode)
+			switch {
+			case strings.HasPrefix(strconv.Itoa(spoofed_request_interface.StatusCode), "2"):
+				fmt.Printf("  > %s %s", vhost, color.GreenString("(Status Code: %d)\n\n", spoofed_request_interface.StatusCode))
+			case strings.HasPrefix(strconv.Itoa(spoofed_request_interface.StatusCode), "3"):
+				fmt.Printf("  > %s %s", vhost, color.YellowString("(Status Code: %d)\n\n", spoofed_request_interface.StatusCode))
+			case strings.HasPrefix(strconv.Itoa(spoofed_request_interface.StatusCode), "4") || strings.HasPrefix(strconv.Itoa(spoofed_request_interface.StatusCode), "5"):
+				fmt.Printf("  > %s %s", vhost, color.RedString("(Status Code: %d)\n\n", spoofed_request_interface.StatusCode))
+			default:
+				fmt.Printf("  > %s %s", vhost, color.RedString("(Status Code: %d)\n\n", spoofed_request_interface.StatusCode))
+			}
 
 			vhost_information := t_vhost{
 				target:                      target,
@@ -246,7 +256,7 @@ func run(targets_from_file_or_target_url string, vhosts_lists_path string) error
 			}
 
 		} else {
-			fmt.Println("  > No vhosts were enumerated")
+			fmt.Println("  > No vhosts were enumerated\n")
 		}
 
 		fmt.Printf("  > Finished VHost Enumeration On Target: %s\n\n", target)
@@ -263,7 +273,7 @@ func run(targets_from_file_or_target_url string, vhosts_lists_path string) error
 			fmt.Println("  > " + target_that_encountered_error.target + " || Error: " + target_that_encountered_error.error.Error())
 		}
 	} else {
-		fmt.Println("> All targets were enumerated successfully")
+		fmt.Println("\n\n> All targets were enumerated successfully")
 	}
 	return nil
 }
