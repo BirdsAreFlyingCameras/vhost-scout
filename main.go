@@ -1,14 +1,10 @@
 package main
 
 import (
-	"crypto/md5"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"github.com/fatih/color"
-	"io"
 	"math/rand"
-	"net/http"
 	"os"
 	"strconv"
 	"strings"
@@ -16,6 +12,7 @@ import (
 	"vhost-scout/include/banner_utils"
 	"vhost-scout/include/file_utils"
 	"vhost-scout/include/input_utils"
+	"vhost-scout/include/random_utils"
 	"vhost-scout/include/request_utils"
 	"vhost-scout/include/sqlite_utils"
 )
@@ -33,58 +30,6 @@ type t_vhost struct {
 	spoofed_request_status_code int
 }
 
-func gen_random_string(string_length int) string {
-
-	// ----| Ensure string length is not 0
-	if string_length <= 0 {
-		string_length = 7
-	}
-
-	// ----| Generate random string
-	const letters = "abcdefghijklmnopqrstuvwxyz"
-	random_string := ""
-	for range string_length {
-		random_string += string(letters[rand.Intn(len(letters))])
-	}
-	return random_string
-}
-
-func gen_response_body_md5(response_body io.ReadCloser) (string, error) {
-	response_body_md5_hash := md5.New()
-	if _, err := io.Copy(response_body_md5_hash, response_body); err != nil {
-		return "", errors.New("An error occurred while generating md5 hash of response body: " + err.Error())
-	}
-	return hex.EncodeToString(response_body_md5_hash.Sum(nil)), nil
-}
-
-func send_request_with_spoofed_host_header(target string, vhost string) (string, http.Response, error) {
-
-	// ----| Build request so we can spoof Host header
-	spoofed_req, err := http.NewRequest("GET", target, nil)
-	if err != nil {
-		return "", http.Response{}, errors.New("Error occurred while attempting to build request to: " + target + "with Host header: " + vhost + "\n" + err.Error())
-	}
-
-	// ----| Set Request Headers
-	spoofed_req_headers := request_utils.Generate_random_request_headers() // Generate Random Request Headers
-	spoofed_req.Header = spoofed_req_headers
-	// Set additional headers here as needed
-	spoofed_req.Host = vhost // Spoof host header
-
-	// ----| Make request with spoofed Host header
-	resp_to_spoofed_req, err := http.DefaultClient.Do(spoofed_req)
-	if err != nil {
-		return "", http.Response{}, errors.New("An error occurred while making a spoofed request to: " + target + " with Host header: " + vhost + "\n" + err.Error())
-	}
-
-	// ----| Generate md5 hash from baseline_resp body
-	resp_to_spoofed_req_md5_hash, err := gen_response_body_md5(resp_to_spoofed_req.Body)
-	if err != nil {
-		return "", http.Response{}, errors.New("Error occurred while attempting to generate md5 hash of the baseline response body while processing target: " + target)
-	}
-	return resp_to_spoofed_req_md5_hash, *resp_to_spoofed_req, nil
-}
-
 func process_target(target string, vhosts_list []string) ([]t_vhost, error) {
 
 	// ----| Shuffle vhosts list to avoid basic defences
@@ -93,7 +38,7 @@ func process_target(target string, vhosts_list []string) ([]t_vhost, error) {
 	})
 
 	// ----| Make initial request to target with random host header to establish baseline response to requests to non-existent vhosts
-	baseline_resp_md5_hash, _, err := send_request_with_spoofed_host_header(target, gen_random_string(rand.Intn(10))+".com") // Send baseline request with a spoofed Host header set to a random 1 to 10 letter string followed by .com
+	baseline_resp_md5_hash, _, err := request_utils.Send_request_with_spoofed_host_header(target, random_utils.Gen_random_string(rand.Intn(10))+".com") // Send baseline request with a spoofed Host header set to a random 1 to 10 letter string followed by .com
 	if err != nil {
 		return nil, errors.New("Error occurred while attempting to make baseline request to: " + target + " with Host header: " + target + "\n" + err.Error())
 	}
@@ -102,7 +47,7 @@ func process_target(target string, vhosts_list []string) ([]t_vhost, error) {
 	for _, vhost := range vhosts_list {
 
 		// ----| Send request with spoofed Host header
-		spoofed_req_md5_hash, spoofed_request_interface, spoofed_req_err := send_request_with_spoofed_host_header(target, vhost)
+		spoofed_req_md5_hash, spoofed_request_interface, spoofed_req_err := request_utils.Send_request_with_spoofed_host_header(target, vhost)
 		if spoofed_req_err != nil {
 			return nil, errors.New("Error occurred while attempting to send spoofed request to: " + target + "with Host header: " + target + "\n" + spoofed_req_err.Error())
 		}
@@ -177,37 +122,6 @@ func add_enumerated_vhosts_to_db(enumerated_vhosts []t_vhost) error {
 	return nil
 }
 
-func print_banner(targets []string, vhosts_list []string) {
-
-	var banner_art []string
-	banner_art = append(banner_art, banner_utils.Guy_pointing)
-	banner_art = append(banner_art, banner_utils.Patric)
-	banner_art = append(banner_art, banner_utils.Cat)
-	banner_art = append(banner_art, banner_utils.Goose_with_a_shotgun)
-
-	fmt.Println(banner_art[rand.Intn(len(banner_art))])
-
-	fmt.Println("▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁")
-
-	fmt.Println("\n")
-
-	if len(targets) > 10 {
-		fmt.Println("Targets: " + strings.Join(targets[:10], ", ") + ", " + strconv.Itoa(len(targets)-10) + " more targets")
-	} else {
-		fmt.Println("Targets: " + strings.Join(targets, ", "))
-	}
-
-	print("\n")
-
-	if len(vhosts_list) > 10 {
-		fmt.Println("VHosts: " + strings.Join(vhosts_list[:10], ", ") + ", " + strconv.Itoa(len(vhosts_list)-10) + " more vhosts")
-	} else {
-		fmt.Println("VHosts: " + strings.Join(vhosts_list, ", "))
-	}
-
-	print("\n")
-}
-
 func run(targets_from_file_or_target_url string, vhosts_lists_path string) error {
 
 	var targets_list []string
@@ -233,7 +147,7 @@ func run(targets_from_file_or_target_url string, vhosts_lists_path string) error
 	fmt.Println("▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁")
 
 	// ----| Print banner
-	print_banner(targets_list, vhosts_list)
+	banner_utils.Print_banner(targets_list, vhosts_list)
 
 	fmt.Println("▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁")
 

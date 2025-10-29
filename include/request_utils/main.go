@@ -1,6 +1,10 @@
 package request_utils
 
 import (
+	"crypto/md5"
+	"encoding/hex"
+	"errors"
+	"io"
 	"math/rand"
 	"net/http"
 )
@@ -64,4 +68,40 @@ func Generate_random_request_headers() http.Header {
 	headers.Set("Cache-Control", "max-age=0")
 	headers.Set("User-Agent", weighted_random(user_agents))
 	return headers
+}
+
+func Send_request_with_spoofed_host_header(target string, vhost string) (string, http.Response, error) {
+
+	// ----| Build request so we can spoof Host header
+	spoofed_req, err := http.NewRequest("GET", target, nil)
+	if err != nil {
+		return "", http.Response{}, errors.New("Error occurred while attempting to build request to: " + target + "with Host header: " + vhost + "\n" + err.Error())
+	}
+
+	// ----| Set Request Headers
+	spoofed_req_headers := Generate_random_request_headers() // Generate Random Request Headers
+	spoofed_req.Header = spoofed_req_headers
+	// Set additional headers here as needed
+	spoofed_req.Host = vhost // Spoof host header
+
+	// ----| Make request with spoofed Host header
+	resp_to_spoofed_req, err := http.DefaultClient.Do(spoofed_req)
+	if err != nil {
+		return "", http.Response{}, errors.New("An error occurred while making a spoofed request to: " + target + " with Host header: " + vhost + "\n" + err.Error())
+	}
+
+	// ----| Generate md5 hash from baseline_resp body
+	resp_to_spoofed_req_md5_hash, err := gen_response_body_md5(resp_to_spoofed_req.Body)
+	if err != nil {
+		return "", http.Response{}, errors.New("Error occurred while attempting to generate md5 hash of the baseline response body while processing target: " + target)
+	}
+	return resp_to_spoofed_req_md5_hash, *resp_to_spoofed_req, nil
+}
+
+func gen_response_body_md5(response_body io.ReadCloser) (string, error) {
+	response_body_md5_hash := md5.New()
+	if _, err := io.Copy(response_body_md5_hash, response_body); err != nil {
+		return "", errors.New("An error occurred while generating md5 hash of response body: " + err.Error())
+	}
+	return hex.EncodeToString(response_body_md5_hash.Sum(nil)), nil
 }
