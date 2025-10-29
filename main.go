@@ -182,6 +182,8 @@ func print_banner(targets []string, vhosts_list []string) {
 	var banner_art []string
 	banner_art = append(banner_art, banner_utils.Guy_pointing)
 	banner_art = append(banner_art, banner_utils.Patric)
+	banner_art = append(banner_art, banner_utils.Cat)
+	banner_art = append(banner_art, banner_utils.Goose_with_a_shotgun)
 
 	fmt.Println(banner_art[rand.Intn(len(banner_art))])
 
