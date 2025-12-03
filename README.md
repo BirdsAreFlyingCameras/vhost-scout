@@ -16,6 +16,10 @@ Enter the source files directory:
 ```bash
 cd vhost-scout
 ```
+Install Dependencies
+```bash
+go mod tidy
+```
 Build binary from source:
 ```bash
 go build
