@@ -203,7 +203,7 @@ func main() {
 	// Define flags
 	target_ip_or_ip_list_file_path := flag.String("targets", "", "IP address or path to file containing target IPs")
 	vhosts_list_file_path := flag.String("vhosts", "", "Path to file containing vhosts for spoofing")
-	allow_insecure_requests := flag.String("allow_insecure_requests", "true", "Allow insecure SSL/TLS connections")
+	allow_insecure_requests := flag.String("insecure", "false", "Allow insecure SSL/TLS connections")
 
 	// Custom usage message
 	flag.Usage = func() {
@@ -222,6 +222,7 @@ func main() {
 
 	// Validate required flags
 	if *target_ip_or_ip_list_file_path == "" || *vhosts_list_file_path == "" {
+		fmt.Println("Must provide target(s) and vhosts")
 		flag.Usage()
 		os.Exit(1)
 	}
