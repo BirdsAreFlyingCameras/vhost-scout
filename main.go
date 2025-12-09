@@ -214,7 +214,7 @@ func main() {
 		fmt.Println("Options:")
 		flag.PrintDefaults()
 		fmt.Println("\nExample:")
-		fmt.Printf("  %s --targets=192.168.1.1 --vhosts=wordlist.txt --insecure\n", os.Args[0])
+		fmt.Printf("  %s --targets=192.168.1.1 --vhosts=wordlist.txt --insecure=false\n", os.Args[0])
 		fmt.Printf("  %s --targets=targets.txt --vhosts=vhosts.txt\n", os.Args[0])
 	}
 
