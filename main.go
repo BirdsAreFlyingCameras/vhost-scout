@@ -206,11 +206,11 @@ func main() {
 		run(targets_file_path_or_target_url, vhosts_lists_path)
 	*/
 
-	if len(os.Args) != 3 || os.Args[1] == "help" || os.Args[1] == "-h" || os.Args[1] == "--help" {
+	if len(os.Args) != 4 || os.Args[1] == "help" || os.Args[1] == "-h" || os.Args[1] == "--help" {
 		fmt.Print(banner_utils.Cat + "\n")
 		fmt.Println("▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁\n\n")
 		fmt.Print("vhost-scout probes one or more targets to discover virtual-host (vhost) names.\n\n")
-		fmt.Printf("Usage: %s (<target ip> | <targets-ips.txt>) <vhosts.txt> \n", os.Args[0])
+		fmt.Printf("Usage: %s (<target ip> | <targets-ips.txt>) <vhosts.txt> <allow insecure requests: (true/false)>\n", os.Args[0])
 		os.Exit(0)
 	}
 
