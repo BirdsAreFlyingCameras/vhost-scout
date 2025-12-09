@@ -1,10 +1,12 @@
 package main
 
 import (
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"github.com/fatih/color"
 	"math/rand"
+	"net/http"
 	"os"
 	"strconv"
 	"strings"
@@ -122,7 +124,11 @@ func add_enumerated_vhosts_to_db(enumerated_vhosts []t_vhost) error {
 	return nil
 }
 
-func run(targets_file_path_or_target_url string, vhosts_lists_path string) error {
+func run(targets_file_path_or_target_url string, vhosts_lists_path string, allow_insecure_requests string) error {
+
+	if strings.ToLower(allow_insecure_requests) == "true" {
+		http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true} // Configure http to allow insecure requests
+	}
 
 	var targets_list []string
 	if input_utils.IsDomainOrURL(targets_file_path_or_target_url) == false { // Means targets_list_path is a file
@@ -204,13 +210,14 @@ func main() {
 		fmt.Print(banner_utils.Cat + "\n")
 		fmt.Println("▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁\n\n")
 		fmt.Print("vhost-scout probes one or more targets to discover virtual-host (vhost) names.\n\n")
-		fmt.Printf("Usage: %s (<target.tld> | <targets.txt>) <vhosts.txt> \n", os.Args[0])
+		fmt.Printf("Usage: %s (<target ip> | <targets-ips.txt>) <vhosts.txt> \n", os.Args[0])
 		os.Exit(0)
 	}
 
 	targets_file_path_or_target_url := os.Args[1]
 	vhosts_lists_path := os.Args[2]
-	err := run(targets_file_path_or_target_url, vhosts_lists_path)
+	allow_insecure_requests := os.Args[3]
+	err := run(targets_file_path_or_target_url, vhosts_lists_path, allow_insecure_requests)
 	if err != nil {
 		panic("An error occurred while running the program" + err.Error())
 		return
