@@ -125,9 +125,9 @@ func add_enumerated_vhosts_to_db(enumerated_vhosts []t_vhost) error {
 	return nil
 }
 
-func run(targets_file_path_or_target_url string, vhosts_lists_path string, allow_insecure_requests string) error {
+func run(targets_file_path_or_target_url string, vhosts_lists_path string, allow_insecure_requests bool) error {
 
-	if strings.ToLower(allow_insecure_requests) == "true" {
+	if allow_insecure_requests == true {
 		http.DefaultTransport.(*http.Transport).TLSClientConfig = &tls.Config{InsecureSkipVerify: true} // Configure http to allow insecure requests
 	}
 
@@ -201,9 +201,9 @@ func run(targets_file_path_or_target_url string, vhosts_lists_path string, allow
 
 func main() {
 	// Define flags
-	target_ip_or_ip_list_file_path := flag.String("targets", "", "IP address or path to file containing target IPs")
-	vhosts_list_file_path := flag.String("vhosts", "", "Path to file containing vhosts for spoofing")
-	allow_insecure_requests := flag.String("insecure", "false", "Allow insecure SSL/TLS connections")
+	targets := flag.String("targets", "", "IP address or path to file containing target IPs")
+	vhosts := flag.String("vhosts", "", "Path to file containing vhosts for spoofing")
+	insecure := flag.Bool("insecure", false, "Allow insecure SSL/TLS connections")
 
 	// Custom usage message
 	flag.Usage = func() {
@@ -214,24 +214,20 @@ func main() {
 		fmt.Println("Options:")
 		flag.PrintDefaults()
 		fmt.Println("\nExample:")
-		fmt.Printf("  %s --targets=192.168.1.1 --vhosts=wordlist.txt --insecure=false\n", os.Args[0])
+		fmt.Printf("  %s --targets=192.168.1.1 --vhosts=wordlist.txt --insecure\n", os.Args[0])
 		fmt.Printf("  %s --targets=targets.txt --vhosts=vhosts.txt\n", os.Args[0])
 	}
 
 	flag.Parse()
 
 	// Validate required flags
-	if *target_ip_or_ip_list_file_path == "" || *vhosts_list_file_path == "" {
-		fmt.Println("Must provide target(s) and vhosts")
-		flag.Usage()
-		os.Exit(1)
-	}
-	if strings.ToLower(*allow_insecure_requests) == "true" || strings.ToLower(*allow_insecure_requests) == "false" {
+	if *targets == "" || *vhosts == "" {
+		fmt.Println("Error: --targets and --vhosts are required")
 		flag.Usage()
 		os.Exit(1)
 	}
 
-	if err := run(*target_ip_or_ip_list_file_path, *vhosts_list_file_path, *allow_insecure_requests); err != nil {
+	if err := run(*targets, *vhosts, *insecure); err != nil {
 		fmt.Printf("Error: %v\n", err)
 		os.Exit(1)
 	}
