@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/tls"
 	"errors"
+	"flag"
 	"fmt"
 	"github.com/fatih/color"
 	"math/rand"
@@ -199,27 +200,38 @@ func run(targets_file_path_or_target_url string, vhosts_lists_path string, allow
 }
 
 func main() {
+	// Define flags
+	target_ip_or_ip_list_file_path := flag.String("targets", "", "IP address or path to file containing target IPs")
+	vhosts_list_file_path := flag.String("vhosts", "", "Path to file containing vhosts for spoofing")
+	allow_insecure_requests := flag.String("allow_insecure_requests", "true", "Allow insecure SSL/TLS connections")
 
-	/*
-		targets_file_path_or_target_url := "example-targets.txt"
-		vhosts_lists_path := "example-vhosts.txt"
-		run(targets_file_path_or_target_url, vhosts_lists_path)
-	*/
-
-	if len(os.Args) != 4 || os.Args[1] == "help" || os.Args[1] == "-h" || os.Args[1] == "--help" {
+	// Custom usage message
+	flag.Usage = func() {
 		fmt.Print(banner_utils.Cat + "\n")
 		fmt.Println("▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁\n\n")
 		fmt.Print("vhost-scout probes one or more targets to discover virtual-host (vhost) names.\n\n")
-		fmt.Printf("Usage: %s (<target ip> | <targets-ips.txt>) <vhosts.txt> <allow insecure requests: (true/false)>\n", os.Args[0])
-		os.Exit(0)
+		fmt.Printf("Usage: %s [options]\n\n", os.Args[0])
+		fmt.Println("Options:")
+		flag.PrintDefaults()
+		fmt.Println("\nExample:")
+		fmt.Printf("  %s --targets=192.168.1.1 --vhosts=wordlist.txt --insecure\n", os.Args[0])
+		fmt.Printf("  %s --targets=targets.txt --vhosts=vhosts.txt\n", os.Args[0])
 	}
 
-	targets_file_path_or_target_url := os.Args[1]
-	vhosts_lists_path := os.Args[2]
-	allow_insecure_requests := os.Args[3]
-	err := run(targets_file_path_or_target_url, vhosts_lists_path, allow_insecure_requests)
-	if err != nil {
-		panic("An error occurred while running the program" + err.Error())
-		return
+	flag.Parse()
+
+	// Validate required flags
+	if *target_ip_or_ip_list_file_path == "" || *vhosts_list_file_path == "" {
+		flag.Usage()
+		os.Exit(1)
+	}
+	if strings.ToLower(*allow_insecure_requests) == "true" || strings.ToLower(*allow_insecure_requests) == "false" {
+		flag.Usage()
+		os.Exit(1)
+	}
+
+	if err := run(*target_ip_or_ip_list_file_path, *vhosts_list_file_path, *allow_insecure_requests); err != nil {
+		fmt.Printf("Error: %v\n", err)
+		os.Exit(1)
 	}
 }
